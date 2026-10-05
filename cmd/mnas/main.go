@@ -19,12 +19,15 @@ const version = "1.0.0"
 //	GET/POST /suspend  token-gated, runs `loginctl suspend`
 //	GET     /status    plain-text "awake" | "suspended"
 //
-// The process is only running while the machine is awake, so state resets
-// to awake on every boot, which is exactly the right semantics for a WOL
-// consumer.
+// /status always reports "awake": this process can only ever be scheduled
+// to answer an HTTP request while the machine is actually running, so
+// there is nothing else it could honestly say. A one-way "suspended" flag
+// set on /suspend and never reset doesn't work: `loginctl suspend` is a
+// RAM-sleep, so this process's memory - including any such flag - survives
+// a suspend/resume cycle untouched, and would keep lying "suspended"
+// forever after the machine wakes back up.
 type service struct {
 	token   string
-	state   string
 	cmd     string
 	cmdArgs []string
 }
@@ -40,7 +43,6 @@ func newService() *service {
 	}
 	return &service{
 		token:   os.Getenv("TOKEN"),
-		state:   "awake",
 		cmd:     cmd,
 		cmdArgs: args,
 	}
@@ -85,21 +87,28 @@ func (s *service) suspendHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Launch detached so the HTTP reply is flushed before loginctl
-	// suspends the whole machine (which kills this process mid-response).
-	// logind performs the suspend asynchronously, so we don't wait for it.
+	// loginctl's Suspend D-Bus call returns as soon as logind has accepted
+	// the request, well before the machine actually sleeps, so waiting for
+	// it is safe and lets us see whether it was accepted at all (wrong
+	// privileges, no session, an inhibitor lock, etc. all surface here
+	// instead of being silently swallowed).
 	cmd := exec.Command(s.cmd, s.cmdArgs...)
-	cmd.Stdout, cmd.Stderr = nil, nil
-	if err := cmd.Start(); err != nil {
-		log.Printf("suspend: start %s: %v", s.cmd, err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout, cmd.Stderr = &stdout, &stderr
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := cmd.Run(); err != nil {
+		log.Printf("suspend: %s %s: %v (stderr: %s)", s.cmd, strings.Join(s.cmdArgs, " "), err, stderr.String())
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"ok":     false,
+			"error":  err.Error(),
+			"stderr": strings.TrimSpace(stderr.String()),
+		})
 		return
 	}
-	cmd.Process.Release()
-	log.Printf("suspend: launched %s %s", s.cmd, strings.Join(s.cmdArgs, " "))
 
-	s.state = "suspended"
-	w.Header().Set("Content-Type", "application/json")
+	log.Printf("suspend: %s %s accepted", s.cmd, strings.Join(s.cmdArgs, " "))
 	w.WriteHeader(http.StatusAccepted)
 	_ = json.NewEncoder(w).Encode(map[string]any{"ok": true, "note": "suspend initiated"})
 }
@@ -107,7 +116,7 @@ func (s *service) suspendHandler(w http.ResponseWriter, r *http.Request) {
 func (s *service) statusHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write([]byte(s.state))
+	_, _ = w.Write([]byte("awake"))
 }
 
 func (s *service) healthHandler(w http.ResponseWriter, r *http.Request) {

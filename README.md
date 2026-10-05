@@ -155,14 +155,17 @@ code / stdout / stderr as JSON.
 
 ## mnas
 
-Small HTTP service on the target machine. It exists only while the machine is
-awake, so its state resets to `awake` on every boot — exactly the right
-semantics for a WOL target.
+Small HTTP service on the target machine. It can only ever answer an HTTP
+request while the machine is actually running, so `/status` always reports
+`awake` — there's no persisted flag to go stale. (`loginctl suspend` is a
+RAM-sleep: this process's memory, including any such flag, would survive
+the sleep/resume cycle untouched and keep lying after the machine wakes
+back up, which is why there isn't one.)
 
 | method & path  | description |
 |----------------|-------------|
-| `POST/GET /suspend` | requires `Authorization: Bearer $TOKEN` (constant-time compare). On success starts `loginctl suspend` **detached** (so the HTTP reply flushes before the box sleeps) and returns `202`. |
-| `GET /status`   | plain-text `awake` or `suspended`. |
+| `POST/GET /suspend` | requires `Authorization: Bearer $TOKEN` (constant-time compare). Runs `loginctl suspend` and waits for it: on success returns `202`; if logind rejects it (no privileges, an inhibitor lock, etc.) returns `500` with its stderr/error in the JSON body. |
+| `GET /status`   | plain-text `awake`. |
 | `GET /health`   | JSON `{"status":"ok",...}`. |
 
 A missing or wrong token returns `401`.
