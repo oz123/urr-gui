@@ -129,15 +129,23 @@ the persisted `URR_STATE_FILE`.
 
 ### Environment variables
 
-| var               | default                  | meaning |
-|-------------------|--------------------------|---------|
-| `ADDR`            | `:8080`                  | listen address |
-| `TOKEN`           | —                        | bearer token sent to `mnas` (must match mnas) |
-| `MNAS_HOST`       | `mnas`                   | host running mnas |
-| `MNAS_PORT`       | `80`                     | mnas port |
-| `URR_CMD`         | `urr`                    | WOL binary, resolved via `PATH` |
-| `URR_ARG`         | `mnasx`                  | argument for it — `urr mnasx` sends the WOL packet |
-| `URR_STATE_FILE`  | `./state.json`           | where state is persisted |
+| var                          | default                  | meaning |
+|------------------------------|--------------------------|---------|
+| `ADDR`                       | `:8080`                  | listen address |
+| `TOKEN`                      | —                        | bearer token sent to `mnas` (must match mnas) |
+| `MNAS_HOST`                  | `mnas`                   | host running mnas |
+| `MNAS_PORT`                  | `80`                     | mnas port |
+| `MNAS_SCHEME`                | `http`                   | `http` or `https` |
+| `MNAS_PATH_PREFIX`           | —                        | URL path prefix, e.g. `/wol`, when mnas is reverse-proxied at a sub-path |
+| `MNAS_CA_FILE`                | —                        | PEM file to trust mnas's self-signed certificate |
+| `MNAS_INSECURE_SKIP_VERIFY`  | `false`                  | skip TLS verification entirely instead of using `MNAS_CA_FILE` |
+| `URR_CMD`                    | `urr`                    | WOL binary, resolved via `PATH` |
+| `URR_ARG`                    | `mnasx`                  | argument for it — `urr mnasx` sends the WOL packet |
+| `URR_STATE_FILE`             | `./state.json`           | where state is persisted |
+
+Requests go to `$MNAS_SCHEME://$MNAS_HOST:$MNAS_PORT$MNAS_PATH_PREFIX/status`
+and `.../suspend` — e.g. with `MNAS_SCHEME=https`, `MNAS_PATH_PREFIX=/wol`,
+that's `https://192.168.0.150/wol/status`.
 
 `/wake` runs `URR_CMD URR_ARG` (default `urr mnasx`) via
 `exec.Command`, which locates the binary from `PATH`, and reports its exit
