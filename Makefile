@@ -48,9 +48,9 @@ install-gui: $(OUT_DIR)/urr-gui-arm64
 # Gentoo box (OpenRC): binary + init script + conf
 install-mnas: $(OUT_DIR)/mnas-amd64
 	scp $(OUT_DIR)/mnas-amd64   $(MNAS_HOST):/usr/local/bin/mnas
-	scp etc/gentoo/init.d/mnas  $(MNAS_HOST):/etc/init.d/mnas
-	scp etc/gentoo/conf.d/mnas  $(MNAS_HOST):/etc/conf.d/mnas
-	ssh $(MNAS_HOST) 'chmod 755 /usr/local/bin/mnas /etc/init.d/mnas'
+	scp etc/gentoo/init.d/mnas  $(MNAS_HOST):/etc/init.d/mnas-wake-suspend
+	scp etc/gentoo/conf.d/mnas  $(MNAS_HOST):/etc/conf.d/mnas-wake-suspend
+	ssh $(MNAS_HOST) 'chmod 755 /usr/local/bin/mnas /etc/init.d/mnas-wake-suspend'
 
 clean:
 	rm -f $(OUT_DIR)/*

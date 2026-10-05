@@ -13,25 +13,54 @@ depend() {
     after net loopback
 }
 
+# read / verify the pidfile without start-stop-daemon --status
+# (busybox's s-s-d has no --status)
+get_pid() {
+    [ -s "$pidfile" ] && cat "$pidfile" 2>/dev/null
+}
+
+is_running() {
+    local p
+    p=$(get_pid)
+    [ -n "$p" ] && kill -0 "$p" 2>/dev/null
+}
+
 start() {
     ebegin "Starting mnas"
     start-stop-daemon --start --quiet \
         --background --make-pidfile \
         --pidfile "$pidfile" \
         --exec "$command"
-    eend $?
+    local rc=$?
+    eend $rc
+    return $rc
 }
 
 stop() {
-    ebegin "Stopping mnas"
-    start-stop-daemon --stop --quiet --remove-pidfile \
-        --pidfile "$pidfile" --name mnas
-    eend $?
+    local p rc
+    if [ ! -s "$pidfile" ]; then
+        eend 0
+        return 0
+    fi
+    p=$(get_pid)
+    if [ -n "$p" ] && kill -0 "$p" 2>/dev/null; then
+        kill "$p" 2>/dev/null
+        # wait up to 5s for a clean exit
+        local i=0
+        while [ "$i" -lt 50 ] && kill -0 "$p" 2>/dev/null; do
+            sleep 0.1 2>/dev/null || sleep 1
+            i=$((i + 1))
+        done
+        kill -9 "$p" 2>/dev/null
+    fi
+    rm -f "$pidfile"
+    eend 0
+    return 0
 }
 
 status() {
-    if start-stop-daemon --status --pidfile "$pidfile" --name mnas; then
-        einfo "mnas is running"
+    if is_running; then
+        einfo "mnas is running (pid $(get_pid))"
         eend 0
     else
         einfo "mnas is not running"

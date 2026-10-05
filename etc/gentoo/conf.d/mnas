@@ -1,14 +1,19 @@
-# mnas - WOL companion suspend service
+# mnas-wake-suspend - WOL companion suspend service
 #   POST /suspend  Bearer-token gated, runs `loginctl suspend`
 #   GET  /status   plain-text awake|suspended
 #
-# Sourced by OpenRC into the environment of the mnas process.
+# OpenRC sources this file when the service script runs. `export` is
+# required so the daemon actually inherits these (a child process only
+# sees exported variables).
+#
+# NOTE: the file must be /etc/conf.d/mnas-wake-suspend to match the
+# script name /etc/init.d/mnas-wake-suspend.
 
-TOKEN=CHANGE_ME
+export TOKEN=CHANGE_ME
 
 # Listen address.
-ADDR=:80
+export ADDR=:80
 
 # Command executed on /suspend (space-separated args).
-SUSPEND_CMD=loginctl
-SUSPEND_ARGS="suspend"
+export SUSPEND_CMD=loginctl
+export SUSPEND_ARGS="suspend"

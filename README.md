@@ -38,8 +38,8 @@ etc/glinet/                 deployables for the GL.iNet box (BusyBox init)
   S99urr-gui                    drop-in for /etc/kvmd/user/scripts/
   urr-gui.env                   sourced config for urr-gui
 etc/gentoo/                 deployables for the Gentoo host (OpenRC)
-  init.d/mnas                   service script
-  conf.d/mnas                   config (TOKEN, ADDR, SUSPEND_CMD/ARGS)
+  init.d/mnas                   service script (installed as /etc/init.d/mnas-wake-suspend)
+  conf.d/mnas                   config (installed as /etc/conf.d/mnas-wake-suspend)
 ```
 
 Go `1.26`, no external dependencies.
