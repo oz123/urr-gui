@@ -298,6 +298,12 @@ func suspendHandler(w http.ResponseWriter, r *http.Request) {
 
 	body, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
 
+	// Content-Type must be set before WriteHeader - Go silently drops
+	// headers set afterward.
+	if ctype := resp.Header.Get("Content-Type"); ctype != "" {
+		w.Header().Set("Content-Type", ctype)
+	}
+
 	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 		current.Set(StateSuspended, "mnas confirmed suspend")
 		w.WriteHeader(http.StatusOK)
@@ -306,9 +312,6 @@ func suspendHandler(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadGateway)
 	}
 
-	if ctype := resp.Header.Get("Content-Type"); ctype != "" {
-		w.Header().Set("Content-Type", ctype)
-	}
 	if len(body) > 0 {
 		_, _ = w.Write(body)
 	}
