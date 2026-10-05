@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>URR GUI</title>
+  <link rel="stylesheet" href="/css/milligram.css">
+  <style>
+    body { min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+    .card { width: 20rem; text-align: center; padding: 2rem; }
+    .reason { color: #6b6b6b; }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <h1>URR GUI</h1>
+    <p>
+      State: <strong>{{.State}}</strong><br>
+      <small class="reason">{{.Reason}}</small>
+    </p>
+    <a class="button u-full-width {{if .Btn.Suspended}}button-primary{{else}}button-warning{{end}}" href="{{.Btn.Href}}">
+      {{.Btn.Label}}
+    </a>
+    <footer><small>urr-gui {{.Version}}</small></footer>
+  </main>
+</body>
+</html>

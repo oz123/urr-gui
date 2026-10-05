@@ -1,0 +1,39 @@
+# Copyright 2026
+# Distributed under the terms of the GNU General Public License v2
+
+description="mnas - WOL companion suspend service (answers /suspend, /status)"
+
+command="/usr/local/bin/mnas"
+pidfile="/run/mnas.pid"
+
+extra_commands="status"
+
+depend() {
+    after net loopback
+}
+
+start() {
+    ebegin "Starting mnas"
+    start-stop-daemon --start --quiet \
+        --background --make-pidfile \
+        --pidfile "$pidfile" \
+        --exec "$command"
+    eend $?
+}
+
+stop() {
+    ebegin "Stopping mnas"
+    start-stop-daemon --stop --quiet --remove-pidfile \
+        --pidfile "$pidfile" --name mnas
+    eend $?
+}
+
+status() {
+    if start-stop-daemon --status --pidfile "$pidfile" --name mnas; then
+        einfo "mnas is running"
+        eend 0
+    else
+        einfo "mnas is not running"
+        eend 1
+    fi
+}

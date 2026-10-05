@@ -1,0 +1,92 @@
+#!/bin/sh
+# S99urr-gui - start/stop urr-gui on a GL.iNet box (BusyBox init).
+#
+# Deploy (matches this host's hook model, same shape as S99wireguard):
+#   /etc/kvmd/user/scripts/S99urr-gui   <- this file, executed by S99custom
+#   /etc/kvmd/user/urr-gui.env          <- config, sourced below
+#   /usr/local/bin/urr-gui              <- the binary
+#
+# POSIX sh only - no bash. Never blocks boot; logs via logger.
+#
+# usage: S99urr-gui {start|stop|restart|status}
+
+NAME=urr-gui
+TAG=urr-gui
+PIDFILE=/var/run/urr-gui.pid
+CONF=/etc/kvmd/user/urr-gui.env
+LOG=/var/log/urr-gui.log
+BIN=/usr/local/bin/urr-gui
+WAIT_SECS=5
+
+[ -f "$CONF" ] && . "$CONF"
+
+log() {
+    logger -t "$TAG" "$1" || echo "$1"
+}
+
+runpid() {
+    [ -s "$PIDFILE" ] && cat "$PIDFILE"
+}
+
+is_running() {
+    P=$(runpid)
+    [ -n "$P" ] && kill -0 "$P" 2>/dev/null
+}
+
+do_start() {
+    if is_running; then
+        log "$NAME already running (pid $(runpid))"
+        return 0
+    fi
+    if [ ! -x "$BIN" ]; then
+        log "$NAME: missing executable $BIN"
+        return 1
+    fi
+    [ -n "${URR_STATE_FILE:-}" ] && mkdir -p "$(echo "$URR_STATE_FILE" | sed 's|/[^/]*$||')" 2>/dev/null
+    mkdir -p "$(echo "$LOG" | sed 's|/[^/]*$||')" "$(echo "$PIDFILE" | sed 's|/[^/]*$||')" 2>/dev/null
+    log "starting $NAME"
+    "$BIN" >>"$LOG" 2>&1 &
+    printf '%s\n' "$!" >"$PIDFILE"
+    return 0
+}
+
+do_stop() {
+    if ! is_running; then
+        rm -f "$PIDFILE"
+        log "$NAME not running"
+        return 0
+    fi
+    P=$(runpid)
+    log "stopping $NAME (pid $P)"
+    kill "$P" 2>/dev/null
+    i=0
+    while [ "$i" -lt "$WAIT_SECS" ] && kill -0 "$P" 2>/dev/null; do
+        sleep 1
+        i=$((i + 1))
+    done
+    if kill -0 "$P" 2>/dev/null; then
+        log "$NAME: sending SIGKILL to $P"
+        kill -9 "$P" 2>/dev/null
+    fi
+    rm -f "$PIDFILE"
+}
+
+do_status() {
+    if is_running; then
+        log "$NAME running (pid $(runpid))"
+        return 0
+    fi
+    log "$NAME not running"
+    return 3
+}
+
+case "${1:-start}" in
+start)   do_start ;;
+stop)    do_stop ;;
+status)  do_status ;;
+restart) do_stop; do_start ;;
+*)
+    echo "usage: $0 {start|stop|restart|status}" >&2
+    exit 64
+    ;;
+esac
