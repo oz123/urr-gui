@@ -18,7 +18,8 @@ LOG=/var/log/urr-gui.log
 BIN=/usr/local/bin/urr-gui
 WAIT_SECS=5
 
-[ -f "$CONF" ] && . "$CONF"
+# `set -a` so vars from the env file are exported to the daemon
+[ -f "$CONF" ] && { set -a; . "$CONF"; set +a; }
 
 log() {
     logger -t "$TAG" "$1" || echo "$1"
