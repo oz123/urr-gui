@@ -9,6 +9,19 @@
     body { min-height: 100vh; display: flex; align-items: center; justify-content: center; }
     .card { width: 20rem; text-align: center; padding: 2rem; }
     .reason { color: #6b6b6b; }
+    .toast {
+      margin-top: 0.8rem;
+      padding: 0.6rem 0.9rem;
+      border-radius: 4px;
+      font-size: 0.85rem;
+      line-height: 1.3;
+      opacity: 0;
+      transition: opacity 0.35s ease;
+      word-break: break-word;
+    }
+    .toast.show { opacity: 1; }
+    .toast.ok  { background: #e6f4ea; color: #1e7e34; }
+    .toast.err { background: #fdecea; color: #b02a37; }
   </style>
 </head>
 <body>
@@ -18,10 +31,49 @@
       State: <strong>{{.State}}</strong><br>
       <small class="reason">{{.Reason}}</small>
     </p>
-    <a class="button u-full-width {{if .Btn.Suspended}}button-primary{{else}}button-warning{{end}}" href="{{.Btn.Href}}">
+    <a id="action-btn" class="button u-full-width {{if .Btn.Suspended}}button-primary{{else}}button-warning{{end}}"
+       href="{{.Btn.Href}}">
       {{.Btn.Label}}
     </a>
+    <div id="toast" class="toast" hidden></div>
     <footer><small>urr-gui {{.Version}}</small></footer>
   </main>
+  <script>
+    document.getElementById('action-btn').addEventListener('click', function (event) {
+      event.preventDefault();
+      var href = event.currentTarget.href;
+      var toast = document.getElementById('toast');
+      toast.hidden = false;
+      toast.classList.remove('show', 'ok', 'err');
+
+      fetch(href, { method: 'GET' }).then(function (res) {
+        var ctype = res.headers.get('content-type') || '';
+        var parsed = ctype.indexOf('application/json') !== -1 ? res.json() : res.text();
+        return Promise.resolve(parsed).then(function (body) {
+          return { ok: res.ok, status: res.statusText, body: body };
+        });
+      }).then(function (result) {
+        var body = result.body;
+        var message;
+        if (typeof body === 'string') {
+          message = body.trim() || result.status;
+        } else {
+          message = body.note || body.error || body.reason || JSON.stringify(body);
+        }
+        showToast(toast, message, result.ok);
+      }).catch(function (err) {
+        showToast(toast, 'request failed: ' + err, false);
+      });
+    });
+
+    function showToast(toast, message, ok) {
+      toast.textContent = message;
+      requestAnimationFrame(function () {
+        toast.classList.add(ok ? 'ok' : 'err', 'show');
+      });
+      setTimeout(function () { toast.classList.remove('show'); }, 2200);
+      setTimeout(function () { location.reload(); }, 2600);
+    }
+  </script>
 </body>
 </html>
