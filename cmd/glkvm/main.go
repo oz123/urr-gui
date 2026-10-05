@@ -212,12 +212,23 @@ type pageInfo struct {
 
 var pageTmpl = template.Must(template.ParseFS(templates, "templates/index.html"))
 
+// refreshState re-queries mnas for its live status and updates the cached
+// state from it. mnas can only answer while the machine is actually
+// running, so when it's unreachable we leave the cache untouched instead
+// of guessing - that's the expected signature of the machine being asleep.
+func refreshState() {
+	if s, err := queryMnasStatus(); err == nil {
+		current.Set(s, "queried from mnas")
+	}
+}
+
 func rootHandler(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path != "/" {
 		http.NotFound(w, r)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	refreshState()
 	state, reason := current.Get()
 	data := pageInfo{State: string(state), Reason: reason, Btn: state.button(), Version: version}
 	if err := pageTmpl.Execute(w, data); err != nil {
@@ -321,6 +332,7 @@ func wakeHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func stateHandler(w http.ResponseWriter, r *http.Request) {
+	refreshState()
 	s, reason := current.Get()
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]string{

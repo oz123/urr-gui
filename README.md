@@ -122,10 +122,12 @@ Three states, held in memory and persisted to `URR_STATE_FILE`:
 - `awake`   — the machine should be up (wake succeeded, or mnas reported awake).
 - `suspended` — the machine is asleep (suspend succeeded).
 
-**Boot resolution** (in `main`): ask `mnas` (`GET $MNAS_HOST:$MNAS_PORT/status`)
-first — it is the source of truth while it's running; if it's unreachable
-(normal when the host is suspended, since it's the sleep target) fall back to
-the persisted `URR_STATE_FILE`.
+**Live resolution**: `/` and `/state` re-query `mnas` (`GET .../status`) on
+every request — it is the source of truth while it's running. If it's
+unreachable (normal when the host is actually suspended, since it's the
+sleep target), the last cached state is kept instead of guessing. The same
+query also runs once at boot, falling back to the persisted
+`URR_STATE_FILE` if `mnas` isn't reachable yet.
 
 ### Environment variables
 
