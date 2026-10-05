@@ -2,6 +2,8 @@ package main
 
 import (
 	"bytes"
+	"crypto/tls"
+	"crypto/x509"
 	"embed"
 	"encoding/json"
 	"fmt"
@@ -11,12 +13,65 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"sync"
 	"text/template"
 	"time"
 )
 
 const version = "1.0.0"
+
+// mnasBaseURL builds the base URL for the mnas service from
+// MNAS_SCHEME/MNAS_HOST/MNAS_PORT/MNAS_PATH_PREFIX, e.g.
+// "https://192.168.0.150/wol" when mnas sits behind an nginx proxy at a
+// path prefix.
+func mnasBaseURL() string {
+	scheme := os.Getenv("MNAS_SCHEME")
+	if scheme == "" {
+		scheme = "http"
+	}
+	host := os.Getenv("MNAS_HOST")
+	if host == "" {
+		host = "mnas"
+	}
+	port := os.Getenv("MNAS_PORT")
+	if port == "" {
+		port = "80"
+	}
+	prefix := strings.TrimSuffix(os.Getenv("MNAS_PATH_PREFIX"), "/")
+	return fmt.Sprintf("%s://%s:%s%s", scheme, host, port, prefix)
+}
+
+// mnasClient returns an http.Client configured to reach mnas, optionally
+// trusting a self-signed certificate via MNAS_CA_FILE or, as a last
+// resort, skipping verification via MNAS_INSECURE_SKIP_VERIFY.
+func mnasClient() (*http.Client, error) {
+	client := &http.Client{Timeout: 30 * time.Second}
+
+	insecure, _ := strconv.ParseBool(os.Getenv("MNAS_INSECURE_SKIP_VERIFY"))
+	caFile := os.Getenv("MNAS_CA_FILE")
+	if !insecure && caFile == "" {
+		return client, nil
+	}
+
+	tlsConfig := &tls.Config{}
+	if insecure {
+		tlsConfig.InsecureSkipVerify = true
+	} else {
+		pem, err := os.ReadFile(caFile)
+		if err != nil {
+			return nil, fmt.Errorf("read MNAS_CA_FILE: %w", err)
+		}
+		pool := x509.NewCertPool()
+		if !pool.AppendCertsFromPEM(pem) {
+			return nil, fmt.Errorf("MNAS_CA_FILE %s: no certificates found", caFile)
+		}
+		tlsConfig.RootCAs = pool
+	}
+	client.Transport = &http.Transport{TLSClientConfig: tlsConfig}
+	return client, nil
+}
 
 //go:embed templates
 var templates embed.FS
@@ -78,15 +133,7 @@ func loadState(m *machine) bool {
 // queryMnasStatus asks the mnas service for the current power state of the
 // machine it controls ("awake" | "suspended" in the response body).
 func queryMnasStatus() (State, error) {
-	host := os.Getenv("MNAS_HOST")
-	if host == "" {
-		host = "mnas"
-	}
-	port := os.Getenv("MNAS_PORT")
-	if port == "" {
-		port = "80"
-	}
-	statusURL := fmt.Sprintf("http://%s:%s/status", host, port)
+	statusURL := mnasBaseURL() + "/status"
 	req, err := http.NewRequest(http.MethodGet, statusURL, nil)
 	if err != nil {
 		return StateUnknown, err
@@ -95,7 +142,11 @@ func queryMnasStatus() (State, error) {
 		req.Header.Set("Authorization", "Bearer "+v)
 	}
 
-	client := &http.Client{Timeout: 10 * time.Second}
+	client, err := mnasClient()
+	if err != nil {
+		return StateUnknown, err
+	}
+	client.Timeout = 10 * time.Second
 	resp, err := client.Do(req)
 	if err != nil {
 		return StateUnknown, err
@@ -210,15 +261,7 @@ func runWake() wakeResult {
 }
 
 func suspendHandler(w http.ResponseWriter, r *http.Request) {
-	host := os.Getenv("MNAS_HOST")
-	if host == "" {
-		host = "mnas"
-	}
-	port := os.Getenv("MNAS_PORT")
-	if port == "" {
-		port = "80"
-	}
-	target := fmt.Sprintf("http://%s:%s/suspend", host, port)
+	target := mnasBaseURL() + "/suspend"
 
 	req, err := http.NewRequestWithContext(r.Context(), http.MethodGet, target, nil)
 	if err != nil {
@@ -229,7 +272,11 @@ func suspendHandler(w http.ResponseWriter, r *http.Request) {
 		req.Header.Set("Authorization", "Bearer "+token)
 	}
 
-	client := &http.Client{Timeout: 30 * time.Second}
+	client, err := mnasClient()
+	if err != nil {
+		httpError(w, http.StatusInternalServerError, err)
+		return
+	}
 	resp, err := client.Do(req)
 	if err != nil {
 		current.Set(StateUnknown, "mnas unreachable")
