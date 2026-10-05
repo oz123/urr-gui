@@ -1,0 +1,15 @@
+# mnas - WOL companion suspend service
+#   POST /suspend  Bearer-token gated, runs `loginctl suspend`
+#   GET  /status   plain-text awake|suspended
+#
+# Sourced by OpenRC into the environment of the mnas process.
+
+# generate with: openssl rand -base64 32 | tr -d '=+/'
+export TOKEN=".._replace_me_.."
+
+# Listen address.
+export ADDR="0.0.0.0:8099"
+
+# Command executed on /suspend (space-separated args).
+export SUSPEND_CMD=loginctl
+export SUSPEND_ARGS="suspend"

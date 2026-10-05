@@ -45,12 +45,12 @@ install-gui: $(OUT_DIR)/urr-gui-arm64
 	scp -O etc/glinet/urr-gui.env  $(GUI_HOST):/etc/kvmd/user/urr-gui.env
 	ssh $(GUI_HOST) 'chmod +x ./bin/urr-gui /etc/kvmd/user/scripts/S99urr-gui'
 
-# Gentoo box (OpenRC): binary + init script + conf
+# Gentoo box (OpenRC): binary + init script + conf (service: mnas-wake-and-suspend)
 install-mnas: $(OUT_DIR)/mnas-amd64
-	scp $(OUT_DIR)/mnas-amd64   $(MNAS_HOST):/usr/local/bin/mnas
-	scp etc/gentoo/init.d/mnas  $(MNAS_HOST):/etc/init.d/mnas-wake-suspend
-	scp etc/gentoo/conf.d/mnas  $(MNAS_HOST):/etc/conf.d/mnas-wake-suspend
-	ssh $(MNAS_HOST) 'chmod 755 /usr/local/bin/mnas /etc/init.d/mnas-wake-suspend'
+	scp $(OUT_DIR)/mnas-amd64             $(MNAS_HOST):/usr/local/bin/mnas-wake-and-suspend
+	scp etc/gentoo/init.d/mnas-wake-and-suspend $(MNAS_HOST):/etc/init.d/mnas-wake-and-suspend
+	scp etc/gentoo/mnas-wake-and-suspend   $(MNAS_HOST):/etc/conf.d/mnas-wake-and-suspend
+	ssh $(MNAS_HOST) 'chmod 755 /usr/local/bin/mnas-wake-and-suspend /etc/init.d/mnas-wake-and-suspend'
 
 clean:
 	rm -f $(OUT_DIR)/*

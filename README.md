@@ -38,8 +38,8 @@ etc/glinet/                 deployables for the GL.iNet box (BusyBox init)
   S99urr-gui                    drop-in for /etc/kvmd/user/scripts/
   urr-gui.env                   sourced config for urr-gui
 etc/gentoo/                 deployables for the Gentoo host (OpenRC)
-  init.d/mnas                   service script (installed as /etc/init.d/mnas-wake-suspend)
-  conf.d/mnas                   config (installed as /etc/conf.d/mnas-wake-suspend)
+  init.d/mnas-wake-and-suspend  service script (installed as /etc/init.d/mnas-wake-and-suspend)
+  mnas-wake-and-suspend         config (installed as /etc/conf.d/mnas-wake-and-suspend)
 ```
 
 Go `1.26`, no external dependencies.
@@ -89,9 +89,9 @@ What each target copies (see `Makefile`):
 | `install-gui`  | `out/urr-gui-arm64`                          | `/usr/local/bin/urr-gui` |
 |                | `etc/glinet/S99urr-gui`                      | `/etc/kvmd/user/scripts/S99urr-gui` |
 |                | `etc/glinet/urr-gui.env`                     | `/etc/kvmd/user/urr-gui.env` |
-| `install-mnas` | `out/mnas-amd64`                             | `/usr/local/bin/mnas` |
-|                | `etc/gentoo/init.d/mnas`                     | `/etc/init.d/mnas` |
-|                | `etc/gentoo/conf.d/mnas`                     | `/etc/conf.d/mnas` |
+| `install-mnas` | `out/mnas-amd64`                             | `/usr/local/bin/mnas-wake-and-suspend` |
+|                | `etc/gentoo/init.d/mnas-wake-and-suspend`    | `/etc/init.d/mnas-wake-and-suspend` |
+|                | `etc/gentoo/mnas-wake-and-suspend`           | `/etc/conf.d/mnas-wake-and-suspend` |
 
 ---
 
@@ -185,17 +185,19 @@ and supports `start|stop|restart|status`. Config is read from
 /etc/kvmd/user/scripts/S99urr-gui start   # e.g. from a shell, or at next boot
 ```
 
-### Gentoo (OpenRC) — `mnas`
+### Gentoo (OpenRC) — `mnas-wake-and-suspend`
 
-Standard OpenRC service.
+Standard OpenRC service (named `mnas-wake-and-suspend`).
 
 ```sh
-rc-update add mnas default
-rc-service mnas start        # or: rc-service mnas restart / status / stop
+rc-update add mnas-wake-and-suspend default
+rc-service mnas-wake-and-suspend start   # or: rc-service ... restart / status / stop
 ```
 
-Config lives in `/etc/conf.d/mnas` (`TOKEN`, `ADDR`, `SUSPEND_CMD`,
-`SUSPEND_ARGS`). Set a real value for `TOKEN` before first `start`.
+The daemon is installed as `/usr/local/bin/mnas-wake-and-suspend` and the
+config lives in `/etc/conf.d/mnas-wake-and-suspend` (`TOKEN`, `ADDR`,
+`SUSPEND_CMD`, `SUSPEND_ARGS`). Set a real value for `TOKEN` before first
+`start`.
 
 ---
 
@@ -232,8 +234,8 @@ Then open `http://localhost:18083/` in a browser and flip the button.
 ## Security
 
 - Both sides check a shared `TOKEN` (bearer, constant-time compared in `mnas`).
-  Set a long random value on **both** hosts (`etc/gentoo/conf.d/mnas` and
-  `etc/glinet/urr-gui.env`).
+  Set a long random value on **both** hosts (`etc/gentoo/mnas-wake-and-suspend`
+  and `etc/glinet/urr-gui.env`).
 - Both binaries bind only where you point `ADDR` at — keep them off the public
   interface if they're not meant to be.
 - There is no TLS layer in this project; treat these as the two trust

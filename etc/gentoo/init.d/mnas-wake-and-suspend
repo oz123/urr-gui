@@ -1,10 +1,10 @@
-#!/sbin/openrc-shell
+#!/sbin/openrc-run
 # Copyright 2026
 # Distributed under the terms of the GNU General Public License v2
 
 description="mnas - WOL companion suspend service (answers /suspend, /status)"
 
-command="/usr/local/bin/mnas"
+command="/usr/local/bin/mnas-wake-and-suspend"
 pidfile="/run/mnas.pid"
 
 extra_commands="status"
@@ -26,7 +26,7 @@ is_running() {
 }
 
 start() {
-    ebegin "Starting mnas"
+    ebegin "Starting ${command}"
     start-stop-daemon --start --quiet \
         --background --make-pidfile \
         --pidfile "$pidfile" \
@@ -60,10 +60,10 @@ stop() {
 
 status() {
     if is_running; then
-        einfo "mnas is running (pid $(get_pid))"
+        einfo "${command} is running (pid $(get_pid))"
         eend 0
     else
-        einfo "mnas is not running"
+        einfo "${command} is not running"
         eend 1
     fi
 }
