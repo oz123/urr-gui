@@ -40,10 +40,10 @@ install: install-gui install-mnas
 
 # GL.iNet box (busybox): binary + S99 hook + env config
 install-gui: $(OUT_DIR)/urr-gui-arm64
-	scp $(OUT_DIR)/urr-gui-arm64 $(GUI_HOST):/usr/local/bin/urr-gui
-	scp etc/glinet/S99urr-gui $(GUI_HOST):/etc/kvmd/user/scripts/S99urr-gui
-	scp etc/glinet/urr-gui.env  $(GUI_HOST):/etc/kvmd/user/urr-gui.env
-	ssh $(GUI_HOST) 'chmod +x /usr/local/bin/urr-gui /etc/kvmd/user/scripts/S99urr-gui'
+	scp -O $(OUT_DIR)/urr-gui-arm64 $(GUI_HOST):bin/urr-gui
+	scp -O etc/glinet/S99urr-gui $(GUI_HOST):/etc/kvmd/user/scripts/S99urr-gui
+	scp -O etc/glinet/urr-gui.env  $(GUI_HOST):/etc/kvmd/user/urr-gui.env
+	ssh $(GUI_HOST) 'chmod +x ./bin/urr-gui /etc/kvmd/user/scripts/S99urr-gui'
 
 # Gentoo box (OpenRC): binary + init script + conf
 install-mnas: $(OUT_DIR)/mnas-amd64
