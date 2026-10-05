@@ -30,6 +30,8 @@ start() {
     start-stop-daemon --start --quiet \
         --background --make-pidfile \
         --pidfile "$pidfile" \
+        --stdout-logger "logger -t ${RC_SVCNAME} -p daemon.info" \
+        --stderr-logger "logger -t ${RC_SVCNAME} -p daemon.err" \
         --exec "$command"
     local rc=$?
     eend $rc
